@@ -8,8 +8,8 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 from PIL import Image
-from AliceMind.mPLUG.models.model_vqa_mplug import MPLUG
-from AliceMind.mPLUG.models.tokenization_bert import BertTokenizer
+from models.model_vqa_mplug import MPLUG
+from models.tokenization_bert import BertTokenizer
 
 def remove_long_samples(input_ids):
     inds_to_remove = []
