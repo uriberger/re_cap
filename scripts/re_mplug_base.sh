@@ -1,10 +1,9 @@
 #!/bin/sh
-# deepspeed==0.5.8
 
-venv/bin/python vqa_mplug.py \
-    --config ./configs/vqa_mplug_base.yaml \
+python train.py \
+    --config ./configs/re_mplug_base.yaml \
     --checkpoint ./mplug_base.pth \
-    --output_dir output/vqa_mplug_base \
+    --output_dir output \
     --do_two_optim \
     --add_object \
     --max_input_length 80 \

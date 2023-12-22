@@ -10,26 +10,20 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
 import torch.backends.cudnn as cudnn
-import torch.distributed as dist
 
-from models.model_vqa_mplug import MPLUG
-from models.vit import interpolate_pos_embed, resize_pos_embed
+from models.model_re_mplug import MPLUG
+from models.vit import resize_pos_embed
 from models.tokenization_bert import BertTokenizer
 
 import utils
 from dataset.utils import save_result
-from dataset import create_dataset, create_sampler, create_loader, vqa_collate_fn
+from dataset import create_dataset, create_loader, re_collate_fn
 
 from scheduler import create_scheduler
 from optim import create_optimizer, create_two_optimizer
 
-import deepspeed
-
-def train(model, data_loader, optimizer, tokenizer, epoch, warmup_steps, device, scheduler, config, do_amp=False,
-          do_two_optim=False, do_accum=False, accum_steps=1):
+def train(model, data_loader, optimizer, tokenizer, epoch, warmup_steps, device, scheduler, config, do_two_optim=False):
     # train
     model.train()
 
@@ -60,21 +54,9 @@ def train(model, data_loader, optimizer, tokenizer, epoch, warmup_steps, device,
             alpha = config['alpha'] * min(1, i / len(data_loader))
 
         loss = model(image, question_input, answer_input, train=True, alpha=alpha, k=n, weights=weights)
-        #if accum_steps > 1:
-        #    loss = loss / accum_steps
-
-        if do_amp:
-            from apex import amp
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                # logger.info('scaled loss: {}'.format(str(scaled_loss)))
-                scaled_loss.backward()
-        else:
-            loss.backward()
-        if (i + 1) % accum_steps == 0:
-            optimizer.step()
-            optimizer.zero_grad()
-        #model.backward(loss)
-        #model.step()
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
         metric_logger.update(loss=loss.item())
 
         if do_two_optim:
@@ -86,8 +68,6 @@ def train(model, data_loader, optimizer, tokenizer, epoch, warmup_steps, device,
         if epoch == 0 and i % step_size == 0 and i <= warmup_iterations:
             scheduler.step(i // step_size)
         del image,weights, question_input,answer_input, loss
-            # gather the stats from all processes
-    metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger.global_avg())
     return {k: "{:.3f}".format(meter.global_avg) for k, meter in metric_logger.meters.items()}
 
@@ -98,7 +78,7 @@ def evaluation(model, data_loader, tokenizer, device, config):
     model.eval()
 
     metric_logger = utils.MetricLogger(delimiter="  ")
-    header = 'Generate VQA test result:'
+    header = 'Generate reformulation test result:'
     print_freq = 50
 
     result = []
@@ -144,10 +124,9 @@ def evaluate(model, data_loader, dataset, tokenizer, device, config):
 
     # gather the stats from all processes
     torch.cuda.empty_cache()
-    metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger.global_avg())
     return {k: "{:.4f}".format(meter.global_avg) for k, meter in metric_logger.meters.items()}
-def cal_metric(vqa_result, val_file):
+def cal_metric(re_result, val_file):
     
     with open(val_file[0], "r") as f:
         data_list = json.load(f)
@@ -155,13 +134,13 @@ def cal_metric(vqa_result, val_file):
     for each in data_list:
         id2datum[each["question_id"]] = each["label"]
     score = 0.
-    for each in vqa_result:
+    for each in re_result:
         quesid = each["question_id"]
         ans = each["answer"]
         label = id2datum[quesid]
         if ans in label:
             score += label[ans]
-    return score / len(vqa_result)
+    return score / len(re_result)
 
 def main(args, config):
     #print('master addr: ', os.environ['MASTER_ADDR'])
@@ -232,37 +211,18 @@ def main(args, config):
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
 
-    if args.deepspeed:
-        model, optimizer, _, _ = deepspeed.initialize(
-            model=model,
-            optimizer=optimizer,
-            args=args,
-            lr_scheduler=lr_scheduler,
-            dist_init_required=True
-        )
-
     device = torch.device(args.device)
     print('local device:', device)
     model.to(device)
 
     #### Dataset ####
-    print("Creating vqa datasets")
-    if 'local_train_file' in config:
-        datasets = create_dataset('local_vqa', config)
-    else:
-        datasets = create_dataset('vqa', config)
+    print("Creating reformulation datasets")
+    datasets = create_dataset(config)
 
-    if args.distributed:
-        num_tasks = utils.get_world_size()
-        global_rank = utils.get_rank()
-        samplers = create_sampler(datasets, [True, False, False], num_tasks, global_rank)
-    else:
-        samplers = [None, None, None]
-
-    train_loader, val_loader, test_loader = create_loader(datasets,samplers,
+    train_loader, val_loader, test_loader = create_loader(datasets,
                                               batch_size=[config['batch_size_train'],config['batch_size_test'], config['batch_size_test']],
                                               num_workers=[12,8,8],is_trains=[True, False, False],
-                                              collate_fns=[vqa_collate_fn,None,None])
+                                              collate_fns=[re_collate_fn,None,None])
 
 
 
@@ -276,11 +236,9 @@ def main(args, config):
             lr_scheduler.step(epoch + warmup_steps)
 
         if not args.evaluate:
-            if args.distributed:
-                train_loader.sampler.set_epoch(epoch)
 
             train_stats = train(model, train_loader, optimizer, tokenizer, epoch, warmup_steps, device, lr_scheduler,
-                                config, do_amp=args.do_amp, do_two_optim=args.do_two_optim, accum_steps=args.accum_steps)
+                                config, do_two_optim=args.do_two_optim)
             #model.save_checkpoint(os.path.join(args.output_dir), tag='{}.pt'.format(model.global_steps))
             torch.save({
                 'model': model.state_dict(),
@@ -292,8 +250,8 @@ def main(args, config):
         if not args.no_eval:
             val_stats = evaluate(model, val_loader, config["label_file"], tokenizer, device, config)
             if epoch >= 5:
-                vqa_result = evaluation(model, test_loader, tokenizer, device, config)
-                result_file = save_result(vqa_result, args.result_dir, 'vqa_result_epoch%d' % epoch)
+                re_result = evaluation(model, test_loader, tokenizer, device, config)
+                result_file = save_result(re_result, args.result_dir, 're_result_epoch%d' % epoch)
 
         if args.evaluate:
             break
@@ -304,9 +262,9 @@ def main(args, config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', default='./configs/VQA.yaml')
+    parser.add_argument('--config', default='./configs/re_mplug_base.yaml')
     parser.add_argument('--checkpoint', default='')
-    parser.add_argument('--output_dir', default='output/vqa')
+    parser.add_argument('--output_dir', default='output')
     parser.add_argument('--evaluate', action='store_true')
     parser.add_argument('--text_encoder', default='bert-base-uncased')
     parser.add_argument('--text_decoder', default='bert-base-uncased')
@@ -316,18 +274,10 @@ if __name__ == '__main__':
     parser.add_argument('--max_length', default=10, type=int)
     parser.add_argument('--max_input_length', default=50, type=int)
     parser.add_argument('--beam_size', default=5, type=int)
-    parser.add_argument('--world_size', default=1, type=int, help='number of distributed processes')
-    parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
-    parser.add_argument('--distributed', default=True, type=bool)
     parser.add_argument('--do_two_optim', action='store_true')
-    parser.add_argument('--do_amp', action='store_true')
-    parser.add_argument('--no_init_decocde', action='store_true')
-    parser.add_argument('--do_accum', action='store_true')
     parser.add_argument('--add_ocr', action='store_true')
     parser.add_argument('--add_object', action='store_true')
-    parser.add_argument('--accum_steps', default=1, type=int)
     parser.add_argument('--no_eval', action='store_true')
-    parser = deepspeed.add_config_arguments(parser)
     args = parser.parse_args()
 
     config = yaml.load(open(args.config, 'r'), Loader=yaml.Loader)
