@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 from PIL import Image
-from models.model_vqa_mplug import MPLUG
+from models.model_re_mplug import MPLUG
 from models.tokenization_bert import BertTokenizer
 
 def remove_long_samples(input_ids):
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         data = json.load(fp)
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    config = yaml.load(open(f'configs/vqa_mplug_{args.mplug_backbone}.yaml', 'r'), Loader=yaml.Loader)
+    config = yaml.load(open(f'configs/re_mplug_{args.mplug_backbone}.yaml', 'r'), Loader=yaml.Loader)
     config["min_length"] = 1
     config["max_length"] = 50
     config["beam_size"] = 5
