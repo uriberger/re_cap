@@ -143,10 +143,8 @@ def cal_metric(re_result, val_file):
     return score / len(re_result)
 
 def main(args, config):
-    #print('master addr: ', os.environ['MASTER_ADDR'])
-    #print('master port: ', os.environ['MASTER_PORT'])
     # fix the seed for reproducibility
-    seed = args.seed + utils.get_rank()
+    seed = args.seed
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
