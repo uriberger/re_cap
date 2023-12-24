@@ -4,6 +4,11 @@ The code in this repository is based on the original [mPLUG repository](https://
 
 ## Introduction
 
+<img src="pipeline6.pdf" width="400" height="400">
+
+We propose an inference-time feedback model for the task of image captioning with a novel type of feedback, namely reformulation.
+In the context of this type of feedback, the human annotators receive an image and a textual description as input, and subsequently produce text that is as similar as possible to the input text but also incorporates an additional desired attribute (e.g., improved factuality or a desired style). The reformulation model is trained to predict human reformulations.
+
 ## Installation
 ```
 pip install -r requirements.txt
