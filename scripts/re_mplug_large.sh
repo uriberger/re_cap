@@ -3,7 +3,7 @@
 python train.py \
     --config ./configs/re_mplug_large.yaml \
     --checkpoint ./mplug_large_v2.pth \
-    --output_dir output/re_mplug_large_4m \
+    --output_dir output/re_mplug_large \
     --do_two_optim \
     --add_object \
     --max_input_length 80 \    
