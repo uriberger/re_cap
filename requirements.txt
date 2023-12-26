@@ -1,5 +1,5 @@
 torch
-transformers==4.14.1
+transformers==4.32.0
 timm==0.4.9
 decord
 ftfy
@@ -9,3 +9,5 @@ more_itertools
 colorlog
 ruamel.yaml==0.17.28
 git+https://github.com/openai/CLIP.git
+scikit-image
+cog

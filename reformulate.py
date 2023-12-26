@@ -56,7 +56,7 @@ def reformulate(input_file, output_file, model_path, mplug_backbone, batch_size)
     data = data[len(res):]
     batch_start = 0
     batch_num = math.ceil(len(data)/batch_size)
-    for i in tqdm(range(batch_num), dec='Refromulation batches'):
+    for i in tqdm(range(batch_num), desc='Refromulation batches'):
         batch_start = i * batch_size
         batch_end = min(batch_start + batch_size, len(data))
         batch_inds = [i for i in range(batch_start, batch_end)]

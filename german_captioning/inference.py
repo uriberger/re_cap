@@ -1,3 +1,5 @@
+import sys
+sys.path.append('.')
 from predict import Predictor
 import json
 import argparse
@@ -22,11 +24,10 @@ if __name__ == '__main__':
 
     print('Dataset size: ' + str(len(dataset)), flush=True)
     res = []
-    for sample in tqdm(dataset, dec='Generating captions'):
+    for sample in tqdm(dataset, desc='Generating captions'):
         image_path = sample['image_path']
-        image_id = sample['image_id']
         generated_caption = predictor.predict(image=image_path, use_beam_search=True)
-        res.append({'image_id': image_id, 'caption': generated_caption})
+        res.append({'image_path': image_path, 'caption': generated_caption})
 
     if args.reformulation_model is not None:
         orig_file = f'orig_{args.output_file}'
