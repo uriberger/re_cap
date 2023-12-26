@@ -4,7 +4,7 @@ The code in this repository is based on the original [mPLUG repository](https://
 
 ## Introduction
 
-<img src="pipeline6.pdf" width="400" height="400">
+<img src="pipeline.jpg" width="400" height="400">
 
 We propose an inference-time feedback model for the task of image captioning with a novel type of feedback, namely reformulation.
 In the context of this type of feedback, the human annotators receive an image and a textual description as input, and subsequently produce text that is as similar as possible to the input text but also incorporates an additional desired attribute (e.g., improved factuality or a desired style). The reformulation model is trained to predict human reformulations.
@@ -44,6 +44,9 @@ To reformulate existing captions, create a json file containing a list of dictio
 
 Train your own reformulation model or download one of our provided models:
 
+- [Error correction reformulation model](https://drive.google.com/drive/folders/1POjbnc7f3fHtve3y8wqQQvd-hQ-DwHhA?usp=sharing) (mPLUG base)
+- [Humor style-transfer reformulation model](https://drive.google.com/file/d/1Un85hb6mdCjMA6cilfXUcwtaf29uyf25/view?usp=sharing) (mPLUG large)
+- [Romantic style-transfer reformulation model](https://drive.google.com/file/d/1TThQIYb0G8PFut-fYGRV2WUkmfzfgjGd/view?usp=sharing) (mPLUG large)
 
 Then, use the reformulate.py script.:
 ```
