@@ -1,15 +1,14 @@
 import argparse
 import math
 import os
-import time
 import yaml
 import json
 import torch
-import torch.nn as nn
 from torchvision import transforms
 from PIL import Image
 from models.model_re_mplug import MPLUG
 from models.tokenization_bert import BertTokenizer
+from tqdm import tqdm
 
 def remove_long_samples(input_ids):
     inds_to_remove = []
@@ -18,24 +17,12 @@ def remove_long_samples(input_ids):
             inds_to_remove.append(i)
     return inds_to_remove
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model_path', required=True)
-    parser.add_argument('--mplug_backbone', default='base')
-    parser.add_argument('--input_file', required=True)
-    parser.add_argument('--output_file', required=True)
-    parser.add_argument('--batch_size', type=int, default=16)
-    args = parser.parse_args()
-            
-    batch_size = args.batch_size
-    output_file_name = args.output_file
-
-    model_path = args.model_path
-    with open(args.input_file, 'r') as fp:
+def reformulate(input_file, output_file, model_path, mplug_backbone, batch_size):
+    with open(input_file, 'r') as fp:
         data = json.load(fp)
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    config = yaml.load(open(f'configs/re_mplug_{args.mplug_backbone}.yaml', 'r'), Loader=yaml.Loader)
+    config = yaml.load(open(f'configs/re_mplug_{mplug_backbone}.yaml', 'r'), Loader=yaml.Loader)
     config["min_length"] = 1
     config["max_length"] = 50
     config["beam_size"] = 5
@@ -60,23 +47,17 @@ if __name__ == '__main__':
         normalize,
         ])
 
-    if os.path.isfile(output_file_name):
-        with open(output_file_name, 'r') as fp:
+    if os.path.isfile(output_file):
+        with open(output_file, 'r') as fp:
             res = json.load(fp)
             print(f'Found existing output file, resuming from sample {len(res)}, {len(data) - len(res)} samples left to reformulate')
     else:
         res = []
     data = data[len(res):]
     batch_start = 0
-    batch_ind = 0
     batch_num = math.ceil(len(data)/batch_size)
-    t = time.time()
-    while batch_start < len(data):
-        if batch_ind % 100 == 0:
-            print(f'Starting batch {batch_ind} out of {batch_num}, time from prev {time.time() - t}', flush=True)
-            t = time.time()
-            with open(output_file_name, 'w') as fp:
-                fp.write(json.dumps(res))
+    for i in tqdm(range(batch_num), dec='Refromulation batches'):
+        batch_start = i * batch_size
         batch_end = min(batch_start + batch_size, len(data))
         batch_inds = [i for i in range(batch_start, batch_end)]
 
@@ -95,10 +76,18 @@ if __name__ == '__main__':
         answers = [tokenizer.decode(topk_ids[i][0]).replace("[SEP]", "").replace("[CLS]", "").replace("[PAD]", "").strip() for i in range(len(topk_ids))]
         res += [{'image_path': data[batch_inds[i]]['image_path'], 'caption': answers[i]} for i in range(len(batch_inds))]
 
-        batch_start = batch_end
-        batch_ind += 1
+    with open(output_file, 'w') as fp:
+        fp.write(json.dumps(res))    
 
-    with open(output_file_name, 'w') as fp:
-        fp.write(json.dumps(res))
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_path', required=True)
+    parser.add_argument('--mplug_backbone', default='base')
+    parser.add_argument('--input_file', required=True)
+    parser.add_argument('--output_file', required=True)
+    parser.add_argument('--batch_size', type=int, default=16)
+    args = parser.parse_args()
+            
+    reformulate(args.input_file, args.output_file, args.model_path, args.mplug_backbone, args.batch_size)
 
     print('Finished!')
