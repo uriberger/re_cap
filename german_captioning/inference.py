@@ -5,6 +5,7 @@ import json
 import argparse
 from tqdm import tqdm
 from reformulate import reformulate
+from translate import translate
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -30,14 +31,26 @@ if __name__ == '__main__':
         res.append({'image_path': image_path, 'caption': generated_caption})
 
     if args.reformulation_model is not None:
-        orig_file = f'orig_{args.output_file}'
-        with open(orig_file,  'w') as fp:
+        orig_de_file = f'orig_de_{args.output_file}'
+        with open(orig_de_file,  'w') as fp:
+            json.dump(res, fp)
+
+        print('Translating de->en...', flush=True)
+        res = translate(res, 'de', 'en')
+        orig_en_file = f'orig_en_{args.output_file}'
+        with open(orig_en_file,  'w') as fp:
             json.dump(res, fp)
 
         print('Reformulating...', flush=True)
-        reformulate(orig_file, args.output_file, args.reformulation_model, args.mplug_backbone, args.reformulation_batch_size)
-    else:    
-        with open(args.output_file,  'w') as fp:
+        res = reformulate(orig_en_file, args.output_file, args.reformulation_model, args.mplug_backbone, args.reformulation_batch_size)
+        re_en_file = f're_en_{args.output_file}'
+        with open(re_en_file,  'w') as fp:
             json.dump(res, fp)
+
+        print('Translating en->de...', flush=True)
+        res = translate(res, 'en', 'de')
+    
+    with open(args.output_file,  'w') as fp:
+        json.dump(res, fp)
 
     print('Finished!')

@@ -17,7 +17,7 @@ def remove_long_samples(input_ids):
             inds_to_remove.append(i)
     return inds_to_remove
 
-def reformulate(input_file, output_file, model_path, mplug_backbone, batch_size):
+def reformulate(input_file, model_path, mplug_backbone, batch_size):
     with open(input_file, 'r') as fp:
         data = json.load(fp)
 
@@ -47,12 +47,7 @@ def reformulate(input_file, output_file, model_path, mplug_backbone, batch_size)
         normalize,
         ])
 
-    if os.path.isfile(output_file):
-        with open(output_file, 'r') as fp:
-            res = json.load(fp)
-            print(f'Found existing output file, resuming from sample {len(res)}, {len(data) - len(res)} samples left to reformulate')
-    else:
-        res = []
+    res = []
     data = data[len(res):]
     batch_start = 0
     batch_num = math.ceil(len(data)/batch_size)
@@ -76,8 +71,7 @@ def reformulate(input_file, output_file, model_path, mplug_backbone, batch_size)
         answers = [tokenizer.decode(topk_ids[i][0]).replace("[SEP]", "").replace("[CLS]", "").replace("[PAD]", "").strip() for i in range(len(topk_ids))]
         res += [{'image_path': data[batch_inds[i]]['image_path'], 'caption': answers[i]} for i in range(len(batch_inds))]
 
-    with open(output_file, 'w') as fp:
-        fp.write(json.dumps(res))    
+    return res  
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -88,6 +82,9 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=16)
     args = parser.parse_args()
             
-    reformulate(args.input_file, args.output_file, args.model_path, args.mplug_backbone, args.batch_size)
+    res = reformulate(args.input_file, args.model_path, args.mplug_backbone, args.batch_size)
+
+    with open(args.output_file, 'w') as fp:
+        fp.write(json.dumps(res))  
 
     print('Finished!')

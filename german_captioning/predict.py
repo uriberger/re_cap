@@ -1,8 +1,6 @@
 # Prediction interface, code adjusted from the ClipCap, repo: https://github.com/rmokady/CLIP_prefix_caption.git
 
 import clip
-import json
-import os
 from torch import nn
 import numpy as np
 import torch
