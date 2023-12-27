@@ -42,7 +42,7 @@ if __name__ == '__main__':
             json.dump(res, fp)
 
         print('Reformulating...', flush=True)
-        res = reformulate(orig_en_file, args.output_file, args.reformulation_model, args.mplug_backbone, args.reformulation_batch_size)
+        res = reformulate(orig_en_file, args.reformulation_model, args.mplug_backbone, args.reformulation_batch_size)
         re_en_file = f're_en_{args.output_file}'
         with open(re_en_file,  'w') as fp:
             json.dump(res, fp)

@@ -11,3 +11,4 @@ ruamel.yaml==0.17.28
 git+https://github.com/openai/CLIP.git
 scikit-image
 cog
+sentencepiece
