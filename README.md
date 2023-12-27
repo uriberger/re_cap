@@ -55,7 +55,7 @@ python reformulate.py --model_path <path to reformulation model> --mplug_backbon
 
 ## Results on FlickrStyle
 
-The following tables presents results of previous studies on the FlickrStyle dataset (top 3 rows), and the reformulated captions of the ]BLIP model](https://github.com/salesforce/BLIP) (BLIP + Reformulation).
+The following tables presents results of previous studies on the FlickrStyle dataset (top 3 rows), and the reformulated captions of the [BLIP model](https://github.com/salesforce/BLIP) (BLIP + Reformulation).
 
 **Humorous**
 |   | B@1 | B@3 | METEOR | CIDEr |
