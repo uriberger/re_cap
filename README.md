@@ -52,3 +52,29 @@ Then, use the reformulate.py script.:
 ```
 python reformulate.py --model_path <path to reformulation model> --mplug_backbone <base/large> --input_file <path to input json file> --output_file <path to output file, json format>
 ```
+
+## German Image Captioning
+
+The code in this section is based on the [ClipCap repo](https://github.com/rmokady/CLIP_prefix_caption).
+
+We provide a model for German image captioning, trained on the Multi30k dataset, and a pipeline for cross-lingual reformulation: generate a caption in German, translate to English, reformulate, translate back to German.
+
+First, download our [German captioning model](https://drive.google.com/file/d/1LBCapDMsyRimYdkzHyAwRveqzKEGG2d2/view?usp=sharing).
+
+### Generate German Captions
+
+Use the german_captioning/inference.py script for generating German captions, e.g.
+```
+python german_captioning/inference.py --model_path <path to german model> --input_file <path to input file> --output_file <path to output file>
+```
+Where the input file is a list of dictionaries containing a single entry, 'image_path'.
+
+If you want to use the reformulation pipeline, add the --reformulation_model flag with a path to the reformulation model, e.g.
+```
+python german_captioning/inference.py --model_path <path to german model> --input_file <path to input file> --output_file <path to output file> --reformulation_model error_correction_base.pth
+```
+Or
+```
+python german_captioning/inference.py --model_path <path to german model> --input_file <path to input file> --output_file <path to output file> --reformulation_model error_correction_large.pth --mplug_backbone large
+```
+This pipeline uses the [MarianMT open source translation models](https://huggingface.co/docs/transformers/model_doc/marian). If you prefer to use another translation API, you will need to generate the captions using the german_captioning/inference.py script, translate to English, reformulate using the reformulate.py script, and translate back to German.
